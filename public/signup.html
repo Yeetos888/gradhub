@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Portal | Sign Up</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="bg-gradient"></div>
+
+    <nav class="navbar">
+        <a href="/" class="brand">
+            <div class="brand-icon">S</div>
+            <span class="brand-name">StudentPortal</span>
+        </a>
+        <div class="nav-actions">
+            <a href="/login.html?role=student" class="btn btn-outline">Student Login</a>
+            <a href="/login.html?role=mentor" class="btn btn-outline">Mentor Login</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="glass-card auth-container animate-fade-in">
+            <header class="auth-header">
+                <h1 class="auth-title">Create Account</h1>
+                <p class="auth-subtitle">Join our community of learners today</p>
+            </header>
+
+            <form id="signup-form">
+                <div class="form-group">
+                    <label class="form-label">Account Type</label>
+                    <select name="role" id="signup-role" class="form-input">
+                        <option value="student">Student</option>
+                        <option value="mentor">Mentor</option>
+                    </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">First Name</label>
+                        <input type="text" name="first_name" class="form-input" placeholder="John" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" name="last_name" class="form-input" placeholder="Doe" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" name="username" class="form-input" placeholder="johndoe24" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" name="email" class="form-input" placeholder="john@university.edu" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Major / Field of Study</label>
+                    <input type="text" name="major" class="form-input" placeholder="Computer Science">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mentor Specialization (optional)</label>
+                    <input type="text" name="specialization" class="form-input" placeholder="Web Development, AI, Data Science">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-input" placeholder="••••••••" required>
+                </div>
+
+                <div id="error-message" style="color: hsl(var(--clr-error)); font-size: 0.9rem; margin-bottom: 1rem; display: none;"></div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                    Create Account <i class="fas fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <footer class="auth-footer">
+                <p>Already have an account? <a href="/login.html" class="auth-link">Log In</a></p>
+            </footer>
+        </div>
+    </main>
+
+    <script>
+        const signupUrlParams = new URLSearchParams(window.location.search);
+        const signupInitialRole = signupUrlParams.get('role');
+        if (signupInitialRole) {
+            document.getElementById('signup-role').value = signupInitialRole;
+        }
+
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const errorDiv = document.getElementById('error-message');
+
+            try {
+                const response = await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    const role = document.getElementById('signup-role').value;
+                    window.location.href = role === 'mentor' ? '/mentor/dashboard' : '/dashboard';
+                } else {
+                    errorDiv.textContent = result.message;
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Something went wrong. Please try again.';
+                errorDiv.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

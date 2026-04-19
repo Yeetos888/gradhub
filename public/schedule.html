@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Portal | Schedule</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="schedule-page">
+    <div class="bg-gradient"></div>
+
+    <nav class="navbar">
+        <a href="/dashboard" class="brand">
+            <div class="brand-icon">S</div>
+            <span class="brand-name">StudentPortal</span>
+        </a>
+        <div class="nav-actions">
+            <a href="/dashboard" class="btn btn-outline btn-sm">Back to Dashboard</a>
+            <button id="logout-btn" class="btn btn-outline btn-sm">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container animate-fade-in">
+        <header class="section-header text-center">
+            <h1>Class Schedule</h1>
+            <p class="text-muted">Find your upcoming classes and access meeting links.</p>
+        </header>
+
+        <section id="schedule-list" class="schedule-grid">
+            <!-- Schedule items will be loaded here -->
+            <p class="loading-message">Fetching your schedule...</p>
+        </section>
+    </main>
+
+    <script>
+        async function loadSchedule() {
+            try {
+                const response = await fetch('/api/schedule');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const scheduleList = document.getElementById('schedule-list');
+                    scheduleList.innerHTML = '';
+                    
+                    if (data.schedule.length === 0) {
+                        scheduleList.innerHTML = '<p class="empty-message">No classes found in your schedule.</p>';
+                        return;
+                    }
+                    
+                    data.schedule.forEach(item => {
+                        const card = document.createElement('div');
+                        card.className = 'schedule-card glass';
+                        card.innerHTML = `
+                            <div class="card-header">
+                                <span class="course-code">${item.course_code}</span>
+                                <h3>${item.course_name}</h3>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Mentor:</strong> ${item.instructor}</p>
+                                <p><strong>Time:</strong> ${item.schedule_day} | ${item.schedule_time}</p>
+                                <p><strong>Location:</strong> ${item.location}</p>
+                            </div>
+                            <div class="card-footer">
+                                <a href="${item.meeting_link}" target="_blank" class="btn btn-primary btn-block">Join Meeting</a>
+                            </div>
+                        `;
+                        scheduleList.appendChild(card);
+                    });
+                } else {
+                    window.location.href = '/login';
+                }
+            } catch (err) {
+                console.error('Error loading schedule:', err);
+                window.location.href = '/login';
+            }
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/logout', { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = '/login';
+                }
+            } catch (err) {
+                console.error('Logout failed:', err);
+            }
+        });
+
+        loadSchedule();
+    </script>
+</body>
+</html>

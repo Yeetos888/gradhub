@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Courses | Mentor Portal</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="dashboard-page">
+    <div class="bg-gradient"></div>
+
+    <nav class="navbar">
+        <a href="/" class="brand">
+            <div class="brand-icon">S</div>
+            <span class="brand-name">StudentPortal</span>
+        </a>
+        <div class="nav-actions">
+            <span id="user-display" class="user-greeting">Welcome, Mentor</span>
+            <button id="logout-btn" class="btn btn-outline btn-sm">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container animate-fade-in">
+        <header class="dashboard-header text-center">
+            <h1>Manage Courses</h1>
+            <p id="mentor-info" class="text-muted">Loading mentor profile...</p>
+        </header>
+
+        <section class="glass-card" style="padding: 1.5rem; margin-bottom: 2rem;">
+            <h2 id="form-title">Create New Course</h2>
+            <p style="margin-bottom: 1rem; color: hsl(var(--clr-text-muted));">Fill in the course details to create a new course for students.</p>
+            <form id="course-form" style="display: grid; gap: 0.8rem;">
+                <input type="hidden" name="course_id">
+                <input class="form-input" name="course_name" placeholder="Course Name (e.g., Web Development)" required>
+                <input class="form-input" name="course_code" placeholder="Course Code (e.g., CS101)" required>
+                <input class="form-input" name="schedule_day" placeholder="Schedule Day(s) (e.g., Mon, Wed)" required>
+                <input class="form-input" name="schedule_time" placeholder="Schedule Time (e.g., 10:00 AM - 11:30 AM)" required>
+                <input class="form-input" name="location" placeholder="Location (e.g., Room 101 or Online)" required>
+                <input class="form-input" name="meeting_link" placeholder="Meeting Link (e.g., Google Meet URL)" required>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button type="submit" class="btn btn-primary" id="submit-btn">Create Course</button>
+                    <button type="button" class="btn btn-outline" id="cancel-btn" style="display: none;">Cancel</button>
+                </div>
+            </form>
+            <div id="course-message" style="margin-top: 0.8rem; font-size: 0.95rem;"></div>
+        </section>
+
+        <section class="glass-card" style="padding: 1.5rem; margin-bottom: 2rem;">
+            <h2>Your Courses</h2>
+            <p style="margin-bottom: 1rem; color: hsl(var(--clr-text-muted));">View and edit your created courses. Changes are immediately visible to students.</p>
+            <div id="courses-list">
+                <p>Loading courses...</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        async function loadMentor() {
+            try {
+                const response = await fetch('/api/me');
+                const data = await response.json();
+
+                if (!data.success || !data.user || data.user.type !== 'mentor') {
+                    window.location.href = '/mentor/login';
+                    return;
+                }
+
+                const mentor = data.user;
+                document.getElementById('user-display').textContent = `Welcome, ${mentor.first_name}`;
+                document.getElementById('mentor-info').textContent = `Specialization: ${mentor.specialization || 'Not specified'}`;
+            } catch (err) {
+                console.error('Error loading mentor profile:', err);
+                window.location.href = '/mentor/login';
+            }
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/logout', { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = '/';
+                }
+            } catch (err) {
+                console.error('Logout failed:', err);
+            }
+        });
+
+        document.getElementById('course-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const msg = document.getElementById('course-message');
+            const isEdit = data.course_id;
+
+            try {
+                const response = await fetch(isEdit ? '/api/mentor/update-course' : '/api/mentor/create-course', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    msg.style.color = 'hsl(var(--clr-success))';
+                    msg.textContent = result.message;
+                    e.target.reset();
+                    document.getElementById('cancel-btn').click(); // Reset form
+                    loadCourses(); // Reload list
+                } else {
+                    msg.style.color = 'hsl(var(--clr-error))';
+                    msg.textContent = result.message;
+                }
+            } catch (err) {
+                msg.style.color = 'hsl(var(--clr-error))';
+                msg.textContent = 'Could not save course. Please try again.';
+            }
+        });
+
+        document.getElementById('cancel-btn').addEventListener('click', () => {
+            document.getElementById('form-title').textContent = 'Create New Course';
+            document.getElementById('submit-btn').textContent = 'Create Course';
+            document.getElementById('cancel-btn').style.display = 'none';
+            document.getElementById('course-form').reset();
+            document.getElementById('course-message').textContent = '';
+        });
+
+        async function loadCourses() {
+            try {
+                const response = await fetch('/api/schedule');
+                const data = await response.json();
+
+                if (data.success) {
+                    displayCourses(data.schedule);
+                } else {
+                    document.getElementById('courses-list').innerHTML = '<p>Failed to load courses.</p>';
+                }
+            } catch (err) {
+                console.error('Error loading courses:', err);
+                document.getElementById('courses-list').innerHTML = '<p>Error loading courses.</p>';
+            }
+        }
+
+        function displayCourses(courses) {
+            const list = document.getElementById('courses-list');
+            if (courses.length === 0) {
+                list.innerHTML = '<p>No courses created yet.</p>';
+                return;
+            }
+
+            let html = '<div style="display: grid; gap: 1rem;">';
+            courses.forEach(course => {
+                html += `
+                    <div class="course-item" style="border: 1px solid hsl(var(--clr-border)); border-radius: 8px; padding: 1rem; background: hsl(var(--clr-surface));">
+                        <h4>${course.course_name} (${course.course_code})</h4>
+                        <p><strong>Schedule:</strong> ${course.schedule_day} at ${course.schedule_time}</p>
+                        <p><strong>Location:</strong> ${course.location}</p>
+                        <p><strong>Meeting Link:</strong> <a href="${course.meeting_link}" target="_blank">${course.meeting_link}</a></p>
+                        <button class="btn btn-outline btn-sm" onclick="editCourse(${course.id})">Edit</button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            list.innerHTML = html;
+        }
+
+        function editCourse(courseId) {
+            fetch('/api/schedule')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const course = data.schedule.find(c => c.id == courseId);
+                        if (course) {
+                            document.getElementById('form-title').textContent = 'Edit Course';
+                            document.getElementById('submit-btn').textContent = 'Update Course';
+                            document.getElementById('cancel-btn').style.display = 'inline-block';
+
+                            const form = document.getElementById('course-form');
+                            form.course_id.value = course.id;
+                            form.course_name.value = course.course_name;
+                            form.course_code.value = course.course_code;
+                            form.schedule_day.value = course.schedule_day;
+                            form.schedule_time.value = course.schedule_time;
+                            form.location.value = course.location;
+                            form.meeting_link.value = course.meeting_link;
+
+                            // Scroll to form
+                            document.querySelector('form').scrollIntoView({ behavior: 'smooth' });
+                        }
+                    }
+                });
+        }
+
+        loadMentor();
+        loadCourses();
+    </script>
+</body>
+</html>

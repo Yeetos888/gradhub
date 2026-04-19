@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Schedules | Mentor Portal</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="dashboard-page">
+    <div class="bg-gradient"></div>
+
+    <nav class="navbar">
+        <a href="/" class="brand">
+            <div class="brand-icon">S</div>
+            <span class="brand-name">StudentPortal</span>
+        </a>
+        <div class="nav-actions">
+            <span id="user-display" class="user-greeting">Welcome, Mentor</span>
+            <button id="logout-btn" class="btn btn-outline btn-sm">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container animate-fade-in">
+        <header class="dashboard-header text-center">
+            <h1 id="course-title">Course Schedules</h1>
+            <p id="course-info" class="text-muted">Add and manage schedules for this course</p>
+        </header>
+
+        <!-- Create Schedule Section -->
+        <section class="glass-card" style="padding: 1.5rem; margin-bottom: 2rem;">
+            <h2>Add New Schedule</h2>
+            <p style="margin-bottom: 1rem; color: hsl(var(--clr-text-muted));">Add a new class session for this course.</p>
+            <form id="schedule-form" style="display: grid; gap: 0.8rem;">
+                <input type="hidden" name="course_id">
+                <input type="hidden" name="schedule_id">
+                <input class="form-input" name="schedule_day" placeholder="Day(s) (e.g., Monday, Wednesday)" required>
+                <input class="form-input" name="schedule_time" placeholder="Time (e.g., 10:00 AM - 11:30 AM)" required>
+                <input class="form-input" name="location" placeholder="Location (e.g., Room 101 or Online)" required>
+                <input class="form-input" name="meeting_link" placeholder="Meeting Link (e.g., Google Meet URL)" required>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button type="submit" class="btn btn-primary" id="submit-btn">Add Schedule</button>
+                    <button type="button" class="btn btn-outline" id="cancel-btn" style="display: none;">Cancel</button>
+                    <a href="/mentor/courses" class="btn btn-outline">Back to Courses</a>
+                </div>
+            </form>
+            <div id="schedule-message" style="margin-top: 0.8rem; font-size: 0.95rem;"></div>
+        </section>
+
+        <!-- Schedules List Section -->
+        <section class="glass-card" style="padding: 1.5rem;">
+            <h2>Class Sessions</h2>
+            <div id="schedules-list">
+                <p>Loading schedules...</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let selectedCourseId = null;
+        let allSchedules = [];
+
+        async function loadMentor() {
+            try {
+                const response = await fetch('/api/me', { credentials: 'include' });
+                const data = await response.json();
+
+                if (!data.success || !data.user || data.user.type !== 'mentor') {
+                    window.location.href = '/mentor/login';
+                    return;
+                }
+
+                const mentor = data.user;
+                document.getElementById('user-display').textContent = `Welcome, ${mentor.first_name}`;
+
+                // Get selected course from URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                selectedCourseId = urlParams.get('courseId');
+                const courseName = urlParams.get('courseName');
+                const courseCode = urlParams.get('courseCode');
+
+                if (!selectedCourseId) {
+                    window.location.href = '/mentor/courses';
+                    return;
+                }
+
+                document.getElementById('course-title').textContent = `${courseName} (${courseCode})`;
+                document.getElementById('course-info').textContent = `Manage class sessions for ${courseName}`;
+                document.querySelector('input[name="course_id"]').value = selectedCourseId;
+
+                loadSchedules();
+            } catch (err) {
+                console.error('Error loading:', err);
+                window.location.href = '/mentor/login';
+            }
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = '/';
+                }
+            } catch (err) {
+                console.error('Logout failed:', err);
+            }
+        });
+
+        document.getElementById('schedule-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const msg = document.getElementById('schedule-message');
+            const isEdit = data.schedule_id;
+
+            try {
+                const response = await fetch(isEdit ? '/api/mentor/update-schedule' : '/api/mentor/create-schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    msg.style.color = 'hsl(var(--clr-success))';
+                    msg.textContent = result.message;
+                    e.target.reset();
+                    document.querySelector('input[name="course_id"]').value = selectedCourseId;
+                    document.getElementById('cancel-btn').click();
+                    loadSchedules();
+                } else {
+                    msg.style.color = 'hsl(var(--clr-error))';
+                    msg.textContent = result.message;
+                }
+            } catch (err) {
+                msg.style.color = 'hsl(var(--clr-error))';
+                msg.textContent = 'Could not save schedule. Please try again.';
+            }
+        });
+
+        document.getElementById('cancel-btn').addEventListener('click', () => {
+            document.getElementById('submit-btn').textContent = 'Add Schedule';
+            document.getElementById('cancel-btn').style.display = 'none';
+            document.getElementById('schedule-form').reset();
+            document.querySelector('input[name="course_id"]').value = selectedCourseId;
+            document.getElementById('schedule-message').textContent = '';
+        });
+
+        async function loadSchedules() {
+            try {
+                const response = await fetch('/api/schedule', { credentials: 'include' });
+                const data = await response.json();
+
+                if (data.success) {
+                    // Filter schedules for this course
+                    const filtered = data.schedule.filter(s => s.course_id == selectedCourseId);
+                    allSchedules = filtered;
+                    displaySchedules(filtered);
+                } else {
+                    document.getElementById('schedules-list').innerHTML = '<p>Failed to load schedules.</p>';
+                }
+            } catch (err) {
+                console.error('Error loading schedules:', err);
+                document.getElementById('schedules-list').innerHTML = '<p>Error loading schedules.</p>';
+            }
+        }
+
+        function displaySchedules(schedules) {
+            const list = document.getElementById('schedules-list');
+            if (schedules.length === 0) {
+                list.innerHTML = '<p>No schedules added yet. Create one above.</p>';
+                return;
+            }
+
+            let html = '<div style="display: grid; gap: 1rem;">';
+            schedules.forEach(schedule => {
+                html += `
+                    <div class="schedule-item" style="border-left: 4px solid hsl(var(--clr-primary)); border-radius: 8px; padding: 1.5rem; background: hsl(var(--clr-surface));">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <p style="margin: 0.5rem 0;"><strong>📅 Day:</strong> ${schedule.schedule_day}</p>
+                                <p style="margin: 0.5rem 0;"><strong>⏰ Time:</strong> ${schedule.schedule_time}</p>
+                                <p style="margin: 0.5rem 0;"><strong>📍 Location:</strong> ${schedule.location}</p>
+                                <p style="margin: 0.5rem 0;"><strong>🔗 Link:</strong> <a href="${schedule.meeting_link}" target="_blank">${schedule.meeting_link}</a></p>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-outline btn-sm" onclick="editSchedule(${schedule.id})">Edit</button>
+                                <button class="btn btn-outline btn-sm" onclick="deleteSchedule(${schedule.id})">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            list.innerHTML = html;
+        }
+
+        function editSchedule(scheduleId) {
+            const schedule = allSchedules.find(s => s.id == scheduleId);
+            if (schedule) {
+                document.getElementById('submit-btn').textContent = 'Update Schedule';
+                document.getElementById('cancel-btn').style.display = 'inline-block';
+
+                const form = document.getElementById('schedule-form');
+                form.course_id.value = selectedCourseId;
+                form.schedule_id.value = schedule.id;
+                form.schedule_day.value = schedule.schedule_day;
+                form.schedule_time.value = schedule.schedule_time;
+                form.location.value = schedule.location;
+                form.meeting_link.value = schedule.meeting_link;
+
+                // Scroll to form
+                document.querySelector('form').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function deleteSchedule(scheduleId) {
+            if (confirm('Are you sure you want to delete this schedule?')) {
+                // TODO: Add delete endpoint in backend
+                alert('Delete functionality coming soon');
+            }
+        }
+
+        loadMentor();
+    </script>
+</body>
+</html>

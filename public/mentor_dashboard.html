@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mentor Portal | Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="dashboard-page">
+    <div class="bg-gradient"></div>
+
+    <nav class="navbar">
+        <a href="/" class="brand">
+            <div class="brand-icon">S</div>
+            <span class="brand-name">StudentPortal</span>
+        </a>
+        <div class="nav-actions">
+            <span id="user-display" class="user-greeting">Welcome, Mentor</span>
+            <button id="logout-btn" class="btn btn-outline btn-sm">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container animate-fade-in">
+        <header class="dashboard-header text-center">
+            <h1 id="welcome-message">Mentor Dashboard</h1>
+            <p id="mentor-specialization" class="text-muted">Loading mentor profile...</p>
+        </header>
+
+
+
+        <section class="dashboard-grid">
+            <div class="card glass">
+                <div class="card-icon">📚</div>
+                <h3>Manage Courses</h3>
+                <p>Create and edit courses for your students.</p>
+                <a href="/mentor/courses" class="btn btn-primary">Go to Courses</a>
+            </div>
+
+            <div class="card glass">
+                <div class="card-icon">🧑‍🏫</div>
+                <h3>Your Sessions</h3>
+                <p>View assigned student sessions and your schedule.</p>
+                <button class="btn btn-outline" disabled>Coming Soon</button>
+            </div>
+
+            <div class="card glass">
+                <div class="card-icon">💬</div>
+                <h3>Mentor Chat</h3>
+                <p>Interact with students and mentor peers.</p>
+                <button class="btn btn-outline" disabled>Coming Soon</button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        async function loadMentor() {
+            try {
+                const response = await fetch('/api/me', { credentials: 'include' });
+                const data = await response.json();
+
+                if (!data.success || !data.user || data.user.type !== 'mentor') {
+                    window.location.href = '/mentor/login';
+                    return;
+                }
+
+                const mentor = data.user;
+                document.getElementById('user-display').textContent = `Welcome, ${mentor.first_name}`;
+                document.getElementById('welcome-message').textContent = `Hi, ${mentor.first_name}!`;
+                document.getElementById('mentor-specialization').textContent = `Specialization: ${mentor.specialization || 'Not specified'}`;
+            } catch (err) {
+                console.error('Error loading mentor profile:', err);
+                window.location.href = '/mentor/login';
+            }
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = '/';
+                }
+            } catch (err) {
+                console.error('Logout failed:', err);
+            }
+        });
+
+        loadMentor();
+    </script>
+</body>
+</html>

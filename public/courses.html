@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Courses</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="dashboard-page">
+    <div class="bg-gradient"></div>
+
+    <nav class="navbar">
+        <a href="/" class="brand">
+            <div class="brand-icon">S</div>
+            <span class="brand-name">StudentPortal</span>
+        </a>
+        <div class="nav-actions">
+            <span id="user-display" class="user-greeting">Welcome</span>
+            <button id="logout-btn" class="btn btn-outline btn-sm">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container animate-fade-in">
+        <header class="dashboard-header text-center">
+            <h1>Available Courses</h1>
+            <p id="user-info" class="text-muted">Browse all available courses</p>
+        </header>
+
+        <section class="glass-card" style="padding: 1.5rem;">
+            <div id="courses-list">
+                <p>Loading courses...</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let currentUser = null;
+
+        async function loadUser() {
+            try {
+                const response = await fetch('/api/me', { credentials: 'include' });
+                const data = await response.json();
+
+                if (!data.success || !data.user) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                currentUser = data.user;
+                document.getElementById('user-display').textContent = `Welcome, ${data.user.first_name}`;
+                loadCourses();
+            } catch (err) {
+                console.error('Error loading user:', err);
+                window.location.href = '/login';
+            }
+        }
+
+        async function loadCourses() {
+            try {
+                const response = await fetch('/api/courses', { credentials: 'include' });
+                const data = await response.json();
+
+                if (data.success) {
+                    displayCourses(data.courses);
+                } else {
+                    document.getElementById('courses-list').innerHTML = '<p>Failed to load courses.</p>';
+                }
+            } catch (err) {
+                console.error('Error loading courses:', err);
+                document.getElementById('courses-list').innerHTML = '<p>Error loading courses.</p>';
+            }
+        }
+
+        function displayCourses(courses) {
+            const list = document.getElementById('courses-list');
+            if (courses.length === 0) {
+                list.innerHTML = '<p>No courses available at this time.</p>';
+                return;
+            }
+
+            let html = '<div style="display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">';
+            courses.forEach(course => {
+                html += `
+                    <div class="course-item" style="border: 1px solid hsl(var(--clr-border)); border-radius: 8px; padding: 1.5rem; background: hsl(var(--clr-surface)); display: flex; flex-direction: column;">
+                        <h3 style="margin: 0 0 0.5rem 0;">${course.course_name}</h3>
+                        <p style="margin: 0 0 1rem 0; color: hsl(var(--clr-text-muted)); font-weight: bold;">${course.course_code}</p>
+                        <p style="margin: 0 0 0.5rem 0;"><strong>Instructor:</strong> ${course.instructor}</p>
+                        ${course.description ? `<p style="margin: 0 0 1rem 0; color: hsl(var(--clr-text-muted));">${course.description}</p>` : ''}
+                        <a href="/schedule" class="btn btn-primary">View Schedule</a>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            list.innerHTML = html;
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = '/';
+                }
+            } catch (err) {
+                console.error('Logout failed:', err);
+            }
+        });
+
+        loadUser();
+    </script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Schedule</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="dashboard-page">
+    <div class="bg-gradient"></div>
+
+    <nav class="navbar">
+        <a href="/" class="brand">
+            <div class="brand-icon">S</div>
+            <span class="brand-name">StudentPortal</span>
+        </a>
+        <div class="nav-actions">
+            <span id="user-display" class="user-greeting">Welcome</span>
+            <button id="logout-btn" class="btn btn-outline btn-sm">Logout</button>
+        </div>
+    </nav>
+
+    <main class="container animate-fade-in">
+        <header class="dashboard-header text-center">
+            <h1>Class Schedule</h1>
+            <p id="user-info" class="text-muted">View all your class schedules and meeting links</p>
+        </header>
+
+        <section class="glass-card" style="padding: 1.5rem;">
+            <div id="schedule-list">
+                <p>Loading schedule...</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let currentUser = null;
+
+        async function loadUser() {
+            try {
+                const response = await fetch('/api/me', { credentials: 'include' });
+                const data = await response.json();
+
+                if (!data.success || !data.user) {
+                    window.location.href = '/login';
+                    return;
+                }
+
+                currentUser = data.user;
+                document.getElementById('user-display').textContent = `Welcome, ${data.user.first_name}`;
+                loadSchedule();
+            } catch (err) {
+                console.error('Error loading user:', err);
+                window.location.href = '/login';
+            }
+        }
+
+        async function loadSchedule() {
+            try {
+                const response = await fetch('/api/schedule', { credentials: 'include' });
+                const data = await response.json();
+
+                if (data.success) {
+                    displaySchedule(data.schedule);
+                } else {
+                    document.getElementById('schedule-list').innerHTML = '<p>Failed to load schedule.</p>';
+                }
+            } catch (err) {
+                console.error('Error loading schedule:', err);
+                document.getElementById('schedule-list').innerHTML = '<p>Error loading schedule.</p>';
+            }
+        }
+
+        function displaySchedule(schedules) {
+            const list = document.getElementById('schedule-list');
+            if (schedules.length === 0) {
+                list.innerHTML = '<p>No classes scheduled at this time.</p>';
+                return;
+            }
+
+            let html = '<div style="display: grid; gap: 1rem;">';
+            schedules.forEach(item => {
+                html += `
+                    <div class="schedule-item" style="border-left: 4px solid hsl(var(--clr-primary)); border-radius: 8px; padding: 1.5rem; background: hsl(var(--clr-surface));">
+                        <h3 style="margin: 0 0 0.5rem 0;">${item.course_name} (${item.course_code})</h3>
+                        <p style="margin: 0.5rem 0; color: hsl(var(--clr-text-muted));"><strong>Instructor:</strong> ${item.instructor}</p>
+                        <p style="margin: 0.5rem 0; color: hsl(var(--clr-text-muted));"><strong>📅 When:</strong> ${item.schedule_day}</p>
+                        <p style="margin: 0.5rem 0; color: hsl(var(--clr-text-muted));"><strong>⏰ Time:</strong> ${item.schedule_time}</p>
+                        <p style="margin: 0.5rem 0; color: hsl(var(--clr-text-muted));"><strong>📍 Location:</strong> ${item.location}</p>
+                        <p style="margin: 1rem 0 0 0;"><a href="${item.meeting_link}" target="_blank" class="btn btn-primary btn-sm">Join Meeting</a></p>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            list.innerHTML = html;
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = '/';
+                }
+            } catch (err) {
+                console.error('Logout failed:', err);
+            }
+        });
+
+        loadUser();
+    </script>
+</body>
+</html>
