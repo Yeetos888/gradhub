@@ -69,7 +69,7 @@ app.get("/dashboard", (req, res) => {
 
 app.get("/schedule", (req, res) => {
     if (!req.session.user || req.session.user.type !== "student") return res.redirect("/login");
-    res.sendFile(path.join(__dirname, "public", "schedule.html"));
+    res.sendFile(path.join(__dirname, "public", "student_schedule.html"));
 });
 
 app.get("/mentor/dashboard", (req, res) => {
@@ -85,11 +85,6 @@ app.get("/mentor/courses", (req, res) => {
 app.get("/mentor/schedules", (req, res) => {
     if (!req.session.user || req.session.user.type !== "mentor") return res.redirect("/mentor/login");
     res.sendFile(path.join(__dirname, "public", "mentor_schedules.html"));
-});
-
-app.get("/schedule", (req, res) => {
-    if (!req.session.user || req.session.user.type !== "student") return res.redirect("/login");
-    res.sendFile(path.join(__dirname, "public", "student_schedule.html"));
 });
 
 app.get("/courses", (req, res) => {
